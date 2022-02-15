@@ -1,3 +1,3 @@
 export default interface LoginResultSuccess {
-    token: string;
+    access_token: string;
 }

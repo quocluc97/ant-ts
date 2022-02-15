@@ -1,16 +1,29 @@
 import { Button, Checkbox, Form, Input } from 'antd'
 import axios from 'axios'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../App'
 import LoginResultSuccess from '../interfaces/loginResultSuccess'
 import { setToLocalStorage } from '../util/helper'
+import { Location } from 'history'
 
 function Login() {
+  let auth = useAuth()
+  let navigate = useNavigate()
+  let location: Location = useLocation()
+
   const onFinish = async (values: any) => {
     const request = await axios.post<LoginResultSuccess>(
-      'https://reqres.in/api/login',
-      values,
+      'http://localhost:3000/auth/login',
+      {
+        ...values,
+        type: 'WEB',
+      },
     )
-    if (request.status === 200 && request?.data?.token) {
-      setToLocalStorage('token', request.data.token)
+    if (request.status === 200 && request?.data?.access_token) {
+      setToLocalStorage('token', request.data.access_token)
+      auth.signin(request.data.access_token, () => {
+        navigate('/', { replace: true })
+      })
     }
   }
 
@@ -23,8 +36,8 @@ function Login() {
       labelCol={{ span: 8 }}
       wrapperCol={{ span: 16 }}
       initialValues={{
-        username: 'eve.holt@reqres.in',
-        password: 'admin',
+        username: 'admin',
+        password: '123@imark',
       }}
       onFinish={onFinish}
       onFinishFailed={onFinishFailed}

@@ -21,6 +21,12 @@ const listMenuItems = [
     title: 'Posts',
     link: '/posts',
   },
+  {
+    id: 4,
+    key: '4',
+    title: 'Outlets',
+    link: '/outlets',
+  },
 ]
 function MainLayout() {
   return (
