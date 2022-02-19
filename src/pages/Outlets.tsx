@@ -7,6 +7,7 @@ import {
   Input,
   Row,
   Skeleton,
+  Space,
   Table,
   TablePaginationConfig,
 } from 'antd'
@@ -39,31 +40,48 @@ export interface OutletQueryResult {
   outlets: OutletQueryResultData
 }
 
-export interface OutletFilter {
-  code: string | null
-  name: string | null
+export interface OutletFilterInput {
+  code?: string
+  name?: string
 }
 
+export class FilterOptions<T> {
+  public contains?: T
+}
+
+export class FilterOptionsString extends FilterOptions<string> {}
+
+export interface OutletQueryFilerInput {
+  code?: FilterOptionsString
+  name?: FilterOptionsString
+}
+
+export class QueryPaginationInput {
+  public take? = 10
+  public skip? = 0
+  public where?: OutletQueryFilerInput[]
+}
 function Outlets() {
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10,
   })
-  const [isBtnSearchLoading, setIsBtnSearchLoading] = useState<boolean>(false)
+  const [fitler, setFilter] = useState<OutletQueryFilerInput>({})
+  const [queryPagination, setQueryPagination] = useState<QueryPaginationInput>(
+    {},
+  )
   const [
     loadOutlets,
     { loading, error, data, networkStatus, fetchMore },
   ] = useLazyQuery<OutletQueryResult>(GET_OUTLETS, {
     variables: {
-      pagination: {
-        skip: 0,
-        take: pagination.pageSize,
-      },
+      pagination: queryPagination,
     },
   })
   useEffect(() => {
     loadOutlets()
-  }, [])
+  }, [queryPagination])
+
   useEffect(() => {
     setPagination({
       ...pagination,
@@ -71,23 +89,25 @@ function Outlets() {
     })
   }, [data])
 
-  const onFinish = (values: OutletFilter) => {
-    console.log('Success:', values)
-    // setIsBtnSearchLoading(true)
-    loadOutlets({
-      variables: {
-        pagination: {
-          where: [
-            {
-              code: {
-                contains: values.code,
-              },
-            },
-          ],
+  const onFinish = (values: OutletFilterInput) => {
+    setQueryPagination({
+      where: [
+        {
+          code: {
+            contains: values.code ?? '',
+          },
+          name: {
+            contains: values.name ?? '',
+          },
         },
-      },
+      ],
+      take: pagination.pageSize,
+      skip: 0,
     })
-    // setIsBtnSearchLoading(false)
+    setPagination({
+      ...pagination,
+      current: 1,
+    })
   }
 
   const onFinishFailed = (errorInfo: any) => {
@@ -120,11 +140,7 @@ function Outlets() {
             </Col>
             <Col span={6}>
               <Form.Item label=" ">
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={isBtnSearchLoading}
-                >
+                <Button type="primary" htmlType="submit" loading={loading}>
                   <SearchOutlined />
                 </Button>
               </Form.Item>
@@ -138,19 +154,15 @@ function Outlets() {
         dataSource={data?.outlets?.entities}
         pagination={pagination}
         onChange={(e) => {
-          const skip = ((e.current ?? 1) - 1) * (e.pageSize ?? 0)
-          loadOutlets({
-            variables: {
-              pagination: {
-                skip: skip,
-                take: e.pageSize ?? 5,
-              },
-            },
-          })
           setPagination({
             ...pagination,
             current: e.current ?? 1,
             pageSize: e.pageSize ?? 5,
+          })
+          setQueryPagination({
+            ...queryPagination,
+            take: e.pageSize,
+            skip: ((e.current ?? 1) - 1) * (e?.pageSize ?? 10),
           })
         }}
         columns={[
@@ -177,6 +189,16 @@ function Outlets() {
         ]}
         loading={loading}
         rowKey="id"
+        summary={() => (
+          <Table.Summary fixed>
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0}>Total</Table.Summary.Cell>
+              <Table.Summary.Cell index={1}>
+                {pagination.total}
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          </Table.Summary>
+        )}
       />
     </>
   )

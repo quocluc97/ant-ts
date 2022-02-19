@@ -18,16 +18,42 @@ import {
   ApolloClient,
   ApolloProvider,
   createHttpLink,
+  from,
   InMemoryCache,
 } from '@apollo/client'
 import React, { useContext, createContext, useState } from 'react'
 import { setContext } from '@apollo/client/link/context'
 import Login from './pages/Login'
 import Outlets from './pages/Outlets'
+import {
+  getLocalStorage,
+  removeLocalStorageItem,
+  setToLocalStorage,
+} from './util/helper'
+import { onError } from '@apollo/client/link/error'
 
 const httpLink = createHttpLink({
   uri: 'http://localhost:3000/graphql',
 })
+const errorLink = onError(
+  ({ graphQLErrors, networkError, operation, forward }) => {
+    if (graphQLErrors) {
+      for (let err of graphQLErrors) {
+        switch (err.extensions.code) {
+          // Apollo Server sets code to UNAUTHENTICATED
+          case 'UNAUTHENTICATED':
+            authProvider.signout(() => {
+              removeLocalStorageItem('token')
+              console.log('logout di')
+            })
+        }
+      }
+    }
+    if (networkError) {
+      console.log(`[Network error]: ${networkError}`)
+    }
+  },
+)
 
 const authLink = setContext((_, { headers }) => {
   // get the authentication token from local storage if it exists
@@ -42,36 +68,19 @@ const authLink = setContext((_, { headers }) => {
 })
 
 const client = new ApolloClient({
-  link: authLink.concat(httpLink),
-  cache: new InMemoryCache({
-    typePolicies: {
-      Query: {
-        fields: {
-          feed: {
-            // Don't cache separate results based on
-            // any of this field's arguments.
-            keyArgs: false,
-            // Concatenate the incoming list items with
-            // the existing list items.
-            merge(existing = [], incoming) {
-              return [...existing, ...incoming]
-            },
-          },
-        },
-      },
-    },
-  }),
+  link: from([errorLink, authLink.concat(httpLink)]),
+  cache: new InMemoryCache(),
 })
 
-const fakeAuthProvider = {
+const authProvider = {
   isAuthenticated: false,
   signin(callback: VoidFunction) {
-    fakeAuthProvider.isAuthenticated = true
-    setTimeout(callback, 100) // fake async
+    authProvider.isAuthenticated = true
+    callback()
   },
   signout(callback: VoidFunction) {
-    fakeAuthProvider.isAuthenticated = false
-    setTimeout(callback, 100)
+    authProvider.isAuthenticated = false
+    callback()
   },
 }
 interface AuthContextType {
@@ -83,17 +92,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>(null!)
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  let [user, setUser] = useState<any>(null)
+  let [user, setUser] = useState<any>(getLocalStorage('token'))
 
   let signin = (newUser: string, callback: VoidFunction) => {
-    return fakeAuthProvider.signin(() => {
+    return authProvider.signin(() => {
       setUser(newUser)
       callback()
     })
   }
 
   let signout = (callback: VoidFunction) => {
-    return fakeAuthProvider.signout(() => {
+    return authProvider.signout(() => {
       setUser(null)
       callback()
     })

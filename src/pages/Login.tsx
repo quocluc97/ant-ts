@@ -3,13 +3,15 @@ import axios from 'axios'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
 import LoginResultSuccess from '../interfaces/loginResultSuccess'
-import { setToLocalStorage } from '../util/helper'
+import { getLocalStorage, setToLocalStorage } from '../util/helper'
 import { Location } from 'history'
+import { useEffect } from 'react'
 
 function Login() {
-  let auth = useAuth()
-  let navigate = useNavigate()
-  let location: Location = useLocation()
+  const auth = useAuth()
+  const navigate = useNavigate()
+  const location: Location = useLocation()
+  const accessToken = getLocalStorage('token')
 
   const onFinish = async (values: any) => {
     const request = await axios.post<LoginResultSuccess>(
@@ -26,6 +28,14 @@ function Login() {
       })
     }
   }
+
+  useEffect(() => {
+    if (accessToken) {
+      auth.signin(accessToken, () => {
+        navigate('/', { replace: true })
+      })
+    }
+  })
 
   const onFinishFailed = (errorInfo: any) => {
     console.log('Failed:', errorInfo)
