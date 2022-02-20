@@ -27,8 +27,11 @@ import Login from './pages/Login'
 import Outlets from './pages/Outlets'
 import {
   getLocalStorage,
+  getUserLogin,
   removeLocalStorageItem,
+  removeUserLogin,
   setToLocalStorage,
+  setUserLogin,
 } from './util/helper'
 import { onError } from '@apollo/client/link/error'
 
@@ -42,10 +45,6 @@ const errorLink = onError(
         switch (err.extensions.code) {
           // Apollo Server sets code to UNAUTHENTICATED
           case 'UNAUTHENTICATED':
-            authProvider.signout(() => {
-              removeLocalStorageItem('token')
-              console.log('logout di')
-            })
         }
       }
     }
@@ -57,12 +56,12 @@ const errorLink = onError(
 
 const authLink = setContext((_, { headers }) => {
   // get the authentication token from local storage if it exists
-  const token = localStorage.getItem('token')
+  const userLogin = getUserLogin()
   // return the headers to the context so httpLink can read them
   return {
     headers: {
       ...headers,
-      authorization: token ? `Bearer ${token}` : '',
+      authorization: userLogin ? `Bearer ${userLogin.token}` : '',
     },
   }
 })
@@ -80,22 +79,31 @@ const authProvider = {
   },
   signout(callback: VoidFunction) {
     authProvider.isAuthenticated = false
+    removeUserLogin()
     callback()
   },
 }
+
+export interface UserLogin {
+  username: string
+  displayName: string
+  token: string
+  role: string
+}
 interface AuthContextType {
-  user: any
-  signin: (user: string, callback: VoidFunction) => void
+  user: UserLogin | null
+  signin: (user: UserLogin, callback: VoidFunction) => void
   signout: (callback: VoidFunction) => void
 }
 
 const AuthContext = createContext<AuthContextType>(null!)
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  let [user, setUser] = useState<any>(getLocalStorage('token'))
+  let [user, setUser] = useState<UserLogin | null>(getUserLogin())
 
-  let signin = (newUser: string, callback: VoidFunction) => {
+  let signin = (newUser: UserLogin, callback: VoidFunction) => {
     return authProvider.signin(() => {
+      setUserLogin(newUser)
       setUser(newUser)
       callback()
     })
@@ -110,7 +118,11 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   let value = { user, signin, signout }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, signin, signout }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

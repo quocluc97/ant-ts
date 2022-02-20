@@ -1,9 +1,13 @@
 import { Button, Checkbox, Form, Input } from 'antd'
 import axios from 'axios'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../App'
+import { useAuth, UserLogin } from '../App'
 import LoginResultSuccess from '../interfaces/loginResultSuccess'
-import { getLocalStorage, setToLocalStorage } from '../util/helper'
+import {
+  getLocalStorage,
+  getUserLogin,
+  setToLocalStorage,
+} from '../util/helper'
 import { Location } from 'history'
 import { useEffect } from 'react'
 
@@ -11,7 +15,7 @@ function Login() {
   const auth = useAuth()
   const navigate = useNavigate()
   const location: Location = useLocation()
-  const accessToken = getLocalStorage('token')
+  const userLogin = getUserLogin()
 
   const onFinish = async (values: any) => {
     const request = await axios.post<LoginResultSuccess>(
@@ -22,16 +26,21 @@ function Login() {
       },
     )
     if (request.status === 200 && request?.data?.access_token) {
-      setToLocalStorage('token', request.data.access_token)
-      auth.signin(request.data.access_token, () => {
+      const userLogin: UserLogin = {
+        username: request?.data?.username,
+        displayName: request?.data?.display_name,
+        token: request?.data?.access_token,
+        role: request?.data?.role,
+      }
+      auth.signin(userLogin, () => {
         navigate('/', { replace: true })
       })
     }
   }
 
   useEffect(() => {
-    if (accessToken) {
-      auth.signin(accessToken, () => {
+    if (userLogin) {
+      auth.signin(userLogin, () => {
         navigate('/', { replace: true })
       })
     }

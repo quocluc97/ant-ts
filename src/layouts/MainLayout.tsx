@@ -1,6 +1,7 @@
-import { Layout, Menu, Breadcrumb } from 'antd'
+import { Layout, Menu, Breadcrumb, Button } from 'antd'
 import { Fragment } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../App'
 const { Header, Content, Footer } = Layout
 const listMenuItems = [
   {
@@ -28,7 +29,16 @@ const listMenuItems = [
     link: '/outlets',
   },
 ]
+
 function MainLayout() {
+  const auth = useAuth()
+  const navigate = useNavigate()
+  console.log('auth', auth)
+  const logout = () => {
+    auth.signout(() => {
+      navigate('/login')
+    })
+  }
   return (
     <Layout className="layout">
       <Header>
@@ -46,6 +56,10 @@ function MainLayout() {
         </Menu>
       </Header>
       <Content style={{ padding: '0 50px' }}>
+        <div>
+          User: {auth.user?.displayName}{' '}
+          <Button onClick={logout}>Logout</Button>
+        </div>
         <Breadcrumb style={{ margin: '16px 0' }}>
           <Breadcrumb.Item>Home</Breadcrumb.Item>
           <Breadcrumb.Item>List</Breadcrumb.Item>
